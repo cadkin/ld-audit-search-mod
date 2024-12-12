@@ -546,26 +546,4 @@ char *la_objsearch(const char *name_const, uintptr_t *cookie,
   CHECK_EXCEPT_END
   return name;
 }
-
-void la_preinit(uintptr_t *cookie) {
-  if (!enabled) {
-    return;
-  }
-  CHECK_EXCEPT_BEGIN
-  SPDLOG_DEBUG("cookie={}", fmt::ptr(cookie));
-  cur_state.reset();
-
-  if ((*cfg)["env"]) {
-    Dl_info info;
-    if (dladdr((void *)&la_preinit, &info)) {
-      // load self into the base namespace so that we can manipulate environ
-      // there
-      SPDLOG_DEBUG("dlmopen {}", info.dli_fname);
-      dlmopen(LM_ID_BASE, info.dli_fname, RTLD_LAZY | RTLD_LOCAL);
-    } else {
-      SPDLOG_ERROR("dladdr: {}", dlerror());
-    }
-  }
-  CHECK_EXCEPT_END
-}
 }
