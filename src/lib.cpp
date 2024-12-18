@@ -72,6 +72,61 @@ std::string search_flag_to_str(unsigned flag) {
   }
 }
 
+std::string expand_env(const std::string &s) {
+  std::string ret;
+  bool in_var_name;
+  std::string var_name;
+  for (size_t i = 0; i < s.size(); i++) {
+    if (in_var_name) {
+      if (var_name.empty()) {
+        if (s[i] == '$') {
+          ret += '$';
+          in_var_name = false;
+        } else if (s[i] == '{') {
+          var_name += s[i];
+        } else {
+          break;
+        }
+      } else if (s[i] == '}') {
+        // var_name[0] is '{'
+        const char *env_c = getenv(var_name.c_str() + 1);
+        if (env_c != nullptr) {
+          ret += env_c;
+        }
+        var_name.clear();
+        in_var_name = false;
+      } else {
+        var_name += s[i];
+      }
+    } else {
+      if (s[i] == '$') {
+        in_var_name = true;
+      } else {
+        ret += s[i];
+      }
+    }
+  }
+  if (in_var_name) {
+    SPDLOG_WARN("invalid env substitution string: {}", s);
+    return s;
+  }
+  return ret;
+}
+
+template <typename... Args>
+std::string read_expandable_str(YAML::Node node, Args &&...args) {
+  if (!node || node.IsScalar()) {
+    return node.as<std::string>(std::forward<Args>(args)...);
+  } else {
+    auto s = node["value"].as<std::string>(std::forward<Args>(args)...);
+    if (node["expand_env"].as<bool>(false)) {
+      return expand_env(s);
+    } else {
+      return s;
+    }
+  }
+}
+
 bool is_fatal_err(const char *msg) {
   int err = errno;
   auto err_str = strerror(err);
@@ -283,11 +338,11 @@ __attribute__((constructor)) void init() {
 
       std::stringstream ss;
       if (setenv_node.second.IsScalar()) {
-        ss << setenv_node.second.as<std::string>();
+        ss << setenv_node.second;
       } else {
-        auto type = setenv_node.second["type"].as<std::string>();
+        auto type = setenv_node.second["type"].as<std::string>("set");
         auto splitter = setenv_node.second["splitter"].as<std::string>(":");
-        auto new_value = setenv_node.second["value"].as<std::string>();
+        auto new_value = read_expandable_str(setenv_node.second);
         if (type == "prepend") {
           ss << new_value;
           if (old_value.size() > 0 && old_value.front() != splitter[0]) {
@@ -299,6 +354,8 @@ __attribute__((constructor)) void init() {
           if (old_value.size() > 0 && old_value.back() != splitter[0]) {
             ss << splitter;
           }
+          ss << new_value;
+        } else if (type == "set") {
           ss << new_value;
         }
       }
@@ -426,13 +483,13 @@ char *la_objsearch(const char *name_const, uintptr_t *cookie,
       }
       if (!std::regex_match(
               name, lib_match_result,
-              std::regex(rule["cond"]["lib"].as<std::string>(".*")))) {
+              std::regex(read_expandable_str(rule["cond"]["lib"])))) {
         continue;
       }
       if (!std::regex_match(
               dep_lib_path,
               std::regex(
-                  rule["cond"]["dependent_lib"].as<std::string>(".*")))) {
+                  read_expandable_str(rule["cond"]["dependent_lib"])))) {
         continue;
       }
       SPDLOG_DEBUG("rule {} matched", i);
@@ -502,9 +559,9 @@ char *la_objsearch(const char *name_const, uintptr_t *cookie,
 
       std::string file_path;
       if (auto file_node = prepend_node["file"]; file_node) {
-        file_path = file_node.as<std::string>();
+        file_path = read_expandable_str(file_node);
       } else if (auto dir_node = prepend_node["dir"]; dir_node) {
-        std::filesystem::path dir_path = dir_node.as<std::string>();
+        std::filesystem::path dir_path = read_expandable_str(dir_node);
         file_path = dir_path / cur_state->lib_name;
       } else {
         continue;
@@ -520,13 +577,13 @@ char *la_objsearch(const char *name_const, uintptr_t *cookie,
     auto filter = filters[i];
     if (auto inc_node = filter["include"];
         inc_node &&
-        std::regex_match(name, std::regex(inc_node.as<std::string>()))) {
+        std::regex_match(name, std::regex(read_expandable_str(inc_node)))) {
       SPDLOG_DEBUG("filter {} matched", i);
       break;
     }
     if (auto exc_node = filter["exclude"];
         exc_node &&
-        std::regex_match(name, std::regex(exc_node.as<std::string>()))) {
+        std::regex_match(name, std::regex(read_expandable_str(exc_node)))) {
       SPDLOG_DEBUG("filter {} matched", i);
       return non_existent_path;
     }
