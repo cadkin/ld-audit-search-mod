@@ -483,13 +483,12 @@ char *la_objsearch(const char *name_const, uintptr_t *cookie,
       }
       if (!std::regex_match(
               name, lib_match_result,
-              std::regex(read_expandable_str(rule["cond"]["lib"])))) {
+              std::regex(read_expandable_str(rule["cond"]["lib"], ".*")))) {
         continue;
       }
-      if (!std::regex_match(
-              dep_lib_path,
-              std::regex(
-                  read_expandable_str(rule["cond"]["dependent_lib"])))) {
+      if (!std::regex_match(dep_lib_path,
+                            std::regex(read_expandable_str(
+                                rule["cond"]["dependent_lib"], ".*")))) {
         continue;
       }
       SPDLOG_DEBUG("rule {} matched", i);
