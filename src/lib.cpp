@@ -461,6 +461,7 @@ char *la_objsearch(const char *name_const, uintptr_t *cookie,
       SPDLOG_DEBUG("invalid cookie, can't read loader link_map");
     } else {
       auto lm = *(const link_map *const *)cookie;
+      dep_lib_path = lm->l_name;
       cur_state->has_dt_runpath = false;
       for (auto dyn = lm->l_ld; dyn->d_tag != DT_NULL; dyn++) {
         if (dyn->d_tag == DT_RUNPATH) {
