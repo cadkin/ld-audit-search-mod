@@ -42,7 +42,7 @@ char non_existent_path[] = "/proc/-1";
 
 std::optional<YAML::Node> cfg;
 bool is_nix_rtld;
-bool enabled;
+bool enabled = true;
 
 struct search_state {
   YAML::Node rule;
@@ -247,17 +247,21 @@ __attribute__((constructor)) void init() {
   spdlog::set_level(
       spdlog::level::from_str((*cfg)["log_level"].as<std::string>("warning")));
   SPDLOG_DEBUG("cfg_path={}", cfg_path);
+
   is_nix_rtld = dl_iterate_phdr(
       [](dl_phdr_info *info, size_t, void *) -> int {
         CHECK_EXCEPT_BEGIN
-        std::string name = info->dlpi_name;
-        static const std::string nix_store_dir = NIX_STORE_DIR;
-        static const std::string nix_rtld_name = NIX_RTLD_NAME;
-        if (name.compare(0, nix_store_dir.size(), nix_store_dir) == 0 &&
-            name.size() >= nix_rtld_name.size() &&
-            name.compare(name.size() - nix_rtld_name.size(), std::string::npos,
-                         nix_rtld_name) == 0) {
-          SPDLOG_DEBUG("nix rtld found: {}", name);
+        std::filesystem::path name = info->dlpi_name;
+        if (name.is_relative()) {
+          return 0;
+        }
+        name = std::filesystem::weakly_canonical(name);
+        auto nix_store_dir = std::filesystem::weakly_canonical(NIX_STORE_DIR);
+        if (std::mismatch(nix_store_dir.begin(), nix_store_dir.end(),
+                          name.begin(), name.end())
+                    .first == nix_store_dir.end() &&
+            name.filename() == NIX_RTLD_NAME) {
+          SPDLOG_DEBUG("nix rtld found: {}", name.string());
           return 1;
         }
         CHECK_EXCEPT_END
@@ -279,8 +283,8 @@ __attribute__((constructor)) void init() {
         return strcmp(info->dlpi_name, "") == 0;
       },
       nullptr);
-  if (is_auditing) {
-    enabled = true;
+
+  if (!enabled || is_auditing) {
     return;
   }
 
