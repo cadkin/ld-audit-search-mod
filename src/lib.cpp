@@ -1,5 +1,6 @@
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 
+#include "fix-dtv-realloc.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -287,6 +288,8 @@ __attribute__((constructor)) void init() {
   if (!enabled || is_auditing) {
     return;
   }
+
+  fix_dtv_realloc();
 
   std::map<std::string, std::optional<std::string>> env_data;
   std::string setenv_prefix = "LASM_SETENV_";

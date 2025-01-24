@@ -5,7 +5,10 @@ project(fuck CXX)
 find_package(yaml-cpp REQUIRED)
 find_package(spdlog REQUIRED)
 
-add_library(ld-audit-search-mod SHARED lib.cpp aligned-alloc.cpp)
+add_library(ld-audit-search-mod SHARED
+    lib.cpp
+    aligned-alloc.cpp
+    fix-dtv-realloc.cpp)
 target_compile_options(ld-audit-search-mod PRIVATE -fno-builtin-malloc)
 target_compile_definitions(ld-audit-search-mod PRIVATE
     _GNU_SOURCE
