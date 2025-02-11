@@ -1,18 +1,16 @@
 final: prev: let
   name = "ld-audit-search-mod";
   glibcTargetVersion = "2.17";
-  stdenvZig = final.overrideCC
-    final.pkgsZig.stdenv
-    (final.pkgsZig.stdenv.cc.override (old : {
-      wrapCCWith = args: old.wrapCCWith (final.lib.recursiveUpdate args {
-        nixSupport.cc-cflags = args.nixSupport.cc-cflags ++ [
-          "-target" "${final.hostPlatform.system}-gnu.${glibcTargetVersion}"
-        ];
-      });
-    }));
-    stdenvZigStatic = (final.makeStatic stdenvZig).override (old: {
-      hostPlatform = old.hostPlatform // { isStatic = true; };
+  stdenvZig = (final.zig.override (old : {
+    wrapCCWith = args: old.wrapCCWith (final.lib.recursiveUpdate args {
+      nixSupport.cc-cflags = args.nixSupport.cc-cflags ++ [
+        "-target" "${final.hostPlatform.system}-gnu.${glibcTargetVersion}"
+      ];
     });
+  })).stdenv;
+  stdenvZigStatic = (final.makeStatic stdenvZig).override (old: {
+    hostPlatform = old.hostPlatform // { isStatic = true; };
+  });
   scope = final.lib.makeScope final.newScope (self: {
     stdenv = stdenvZigStatic;
     fmt = (final.fmt.override { inherit (self) stdenv; }).overrideAttrs (old: {
