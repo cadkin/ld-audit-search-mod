@@ -13,11 +13,18 @@
     ] (system: let
       pkgs = import nixpkgs { inherit system; overlays = [ myOverlay ]; };
       name = "ld-audit-search-mod";
-    in {
-      packages = rec {
-        default = pkgs.${name};
-        ${name} = default;
+    in rec {
+      legacyPackages = rec {
+        inherit (pkgs) lasm;
+
+        ${name} = lasm.audit;
       };
+
+      packages = rec {
+        default = legacyPackages.${name};
+        lasm-bash-integration = legacyPackages.lasm.integrations.bash;
+      };
+
       devShells.default = (pkgs.mkShell.override { stdenv = pkgs.${name}.stdenv; }) {
         inputsFrom = [ pkgs.${name} ];
         packages = [ pkgs.clang-tools ];
