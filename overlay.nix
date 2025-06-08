@@ -37,6 +37,7 @@ final: prev: let
 
       integrations = {
         bash = self.callPackage ./integrations/bash { lasmConfig = configs.fallback; };
+        env-hook = self.callPackage ./integrations/nix { lasmConfig = configs.fallback; };
       };
 
       configs = {

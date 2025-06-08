@@ -20,9 +20,10 @@
         ${name} = lasm.audit;
       };
 
-      packages = rec {
+      packages = {
         default = legacyPackages.${name};
-        lasm-bash-integration = legacyPackages.lasm.integrations.bash;
+        lasmBashIntegration = legacyPackages.lasm.integrations.bash;
+        lasmEnvHook = legacyPackages.lasm.integrations.env-hook;
       };
 
       devShells.default = (pkgs.mkShell.override { stdenv = pkgs.${name}.stdenv; }) {
